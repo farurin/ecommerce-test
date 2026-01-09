@@ -4,56 +4,123 @@
 
 @section('main-content')
 <div class="card">
-<h5 class="card-header">Order       <a href="{{route('order.pdf',$order->id)}}" class=" btn btn-sm btn-primary shadow-sm float-right"><i class="fas fa-download fa-sm text-white-50"></i> Generate PDF</a>
+  <h5 class="card-header">Order <a href="{{route('order.pdf',$order->id)}}" class=" btn btn-sm btn-primary shadow-sm float-right"><i class="fas fa-download fa-sm text-white-50"></i> Generate PDF</a>
   </h5>
   <div class="card-body">
     @if($order)
     <table class="table table-striped table-hover">
       <thead>
         <tr>
-            <th>S.N.</th>
-            <th>Order No.</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Quantity</th>
-            <th>Charge</th>
-            <th>Total Amount</th>
-            <th>Status</th>
-            <th>Action</th>
+          <th>Order No.</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Qty Total</th>
+          <th>Charge</th>
+          <th>Total Amount</th>
+          <th>Status</th>
+          <th>Action</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-            <td>{{$order->id}}</td>
-            <td>{{$order->order_number}}</td>
-            <td>{{$order->first_name}} {{$order->last_name}}</td>
-            <td>{{$order->email}}</td>
-            <td>{{$order->quantity}}</td>
-            <td>${{$order->shipping->price}}</td>
-            <td>${{number_format($order->total_amount,2)}}</td>
-            <td>
-                @if($order->status=='new')
-                  <span class="badge badge-primary">{{$order->status}}</span>
-                @elseif($order->status=='process')
-                  <span class="badge badge-warning">{{$order->status}}</span>
-                @elseif($order->status=='delivered')
-                  <span class="badge badge-success">{{$order->status}}</span>
-                @else
-                  <span class="badge badge-danger">{{$order->status}}</span>
-                @endif
-            </td>
-            <td>
-                <form method="POST" action="{{route('order.destroy',[$order->id])}}">
-                  @csrf
-                  @method('delete')
-                      <button class="btn btn-danger btn-sm dltBtn" data-id={{$order->id}} style="height:30px; width:30px;border-radius:50%" data-toggle="tooltip" data-placement="bottom" title="Delete"><i class="fas fa-trash-alt"></i></button>
-                </form>
-            </td>
-
+          <td>{{$order->order_number}}</td>
+          <td>{{$order->first_name}} {{$order->last_name}}</td>
+          <td>{{$order->email}}</td>
+          <td>{{$order->quantity}}</td>
+          <td>${{$order->shipping->price}}</td>
+          <td>${{number_format($order->total_amount,2)}}</td>
+          <td>
+            @if($order->status=='new')
+            <span class="badge badge-primary">{{$order->status}}</span>
+            @elseif($order->status=='process')
+            <span class="badge badge-warning">{{$order->status}}</span>
+            @elseif($order->status=='delivered')
+            <span class="badge badge-success">{{$order->status}}</span>
+            @else
+            <span class="badge badge-danger">{{$order->status}}</span>
+            @endif
+          </td>
+          <td>
+            <form method="POST" action="{{route('order.destroy',[$order->id])}}">
+              @csrf
+              @method('delete')
+              <button class="btn btn-danger btn-sm dltBtn" data-id={{$order->id}} style="height:30px; width:30px;border-radius:50%" data-toggle="tooltip" data-placement="bottom" title="Delete"><i class="fas fa-trash-alt"></i></button>
+            </form>
+          </td>
         </tr>
       </tbody>
     </table>
 
+    <div class="order_items_section" style="margin-top: 30px; margin-bottom: 30px;">
+      <h4 class="text-center pb-3" style="text-decoration: underline">ITEM LIST</h4>
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+          <thead class="thead-dark">
+            <tr>
+              <th>No.</th>
+              <th>Product Image</th>
+              <th>Product Name</th>
+              <th>Quantity</th>
+              <th>Price</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            @foreach($order->cart as $key => $item)
+            <tr>
+              <td>{{ $key + 1 }}</td>
+              <td>
+                @php
+                // LOGIC FOTO: Cek snapshot dulu, kalau kosong baru cek relasi product
+                $photoSrc = '';
+                if($item->product_photo) {
+                $photos = explode(',', $item->product_photo);
+                $photoSrc = $photos[0];
+                } elseif($item->product) {
+                $photos = explode(',', $item->product->photo);
+                $photoSrc = $photos[0];
+                } else {
+                // Placeholder jika foto & produk hilang
+                $photoSrc = 'https://via.placeholder.com/80x80?text=No+Image';
+                }
+                @endphp
+                <img src="{{$photoSrc}}" alt="Product Image" style="max-width:80px; border-radius:5px;">
+              </td>
+              <td>
+                @php
+                // LOGIC JUDUL: Prioritaskan snapshot
+                $productTitle = $item->product_title;
+                $productSlug = '#';
+
+                if(!$productTitle) {
+                // Jika snapshot kosong (order lama), coba ambil dari relasi
+                if($item->product) {
+                $productTitle = $item->product->title;
+                $productSlug = route('product-detail',$item->product->slug);
+                } else {
+                $productTitle = "Product Deleted / Not Available";
+                }
+                } else {
+                // Jika snapshot ada, link detail tetap coba ambil dari relasi jika masih ada
+                if($item->product) {
+                $productSlug = route('product-detail',$item->product->slug);
+                }
+                }
+                @endphp
+
+                <a href="{{ $productSlug }}" target="_blank" style="color: #333; font-weight:600;">
+                  {{ $productTitle }}
+                </a>
+              </td>
+              <td>{{ $item->quantity }}</td>
+              <td>${{ number_format($item->price, 2) }}</td>
+              <td>${{ number_format($item->amount, 2) }}</td>
+            </tr>
+            @endforeach
+          </tbody>
+        </table>
+      </div>
+    </div>
     <section class="confirmation_part section_padding">
       <div class="order_boxes">
         <div class="row">
@@ -61,41 +128,41 @@
             <div class="order-info">
               <h4 class="text-center pb-4">ORDER INFORMATION</h4>
               <table class="table">
-                    <tr class="">
-                        <td>Order Number</td>
-                        <td> : {{$order->order_number}}</td>
-                    </tr>
-                    <tr>
-                        <td>Order Date</td>
-                        <td> : {{$order->created_at->format('D d M, Y')}} at {{$order->created_at->format('g : i a')}} </td>
-                    </tr>
-                    <tr>
-                        <td>Quantity</td>
-                        <td> : {{$order->quantity}}</td>
-                    </tr>
-                    <tr>
-                        <td>Order Status</td>
-                        <td> : {{$order->status}}</td>
-                    </tr>
-                    <tr>
-                      @php
-                          $shipping_charge=DB::table('shippings')->where('id',$order->shipping_id)->pluck('price');
-                      @endphp
-                        <td>Shipping Charge</td>
-                        <td> :${{$order->shipping->price}}</td>
-                    </tr>
-                    <tr>
-                        <td>Total Amount</td>
-                        <td> : $ {{number_format($order->total_amount,2)}}</td>
-                    </tr>
-                    <tr>
-                      <td>Payment Method</td>
-                      <td> : @if($order->payment_method=='cod') Cash on Delivery @else Paypal @endif</td>
-                    </tr>
-                    <tr>
-                        <td>Payment Status</td>
-                        <td> : {{$order->payment_status}}</td>
-                    </tr>
+                <tr class="">
+                  <td>Order Number</td>
+                  <td> : {{$order->order_number}}</td>
+                </tr>
+                <tr>
+                  <td>Order Date</td>
+                  <td> : {{$order->created_at->format('D d M, Y')}} at {{$order->created_at->format('g : i a')}} </td>
+                </tr>
+                <tr>
+                  <td>Quantity</td>
+                  <td> : {{$order->quantity}}</td>
+                </tr>
+                <tr>
+                  <td>Order Status</td>
+                  <td> : {{$order->status}}</td>
+                </tr>
+                <tr>
+                  @php
+                  $shipping_charge=DB::table('shippings')->where('id',$order->shipping_id)->pluck('price');
+                  @endphp
+                  <td>Shipping Charge</td>
+                  <td> :${{$order->shipping->price}}</td>
+                </tr>
+                <tr>
+                  <td>Total Amount</td>
+                  <td> : $ {{number_format($order->total_amount,2)}}</td>
+                </tr>
+                <tr>
+                  <td>Payment Method</td>
+                  <td> : @if($order->payment_method=='cod') Cash on Delivery @else Paypal @endif</td>
+                </tr>
+                <tr>
+                  <td>Payment Status</td>
+                  <td> : {{$order->payment_status}}</td>
+                </tr>
               </table>
             </div>
           </div>
@@ -104,30 +171,30 @@
             <div class="shipping-info">
               <h4 class="text-center pb-4">SHIPPING INFORMATION</h4>
               <table class="table">
-                    <tr class="">
-                        <td>Full Name</td>
-                        <td> : {{$order->first_name}} {{$order->last_name}}</td>
-                    </tr>
-                    <tr>
-                        <td>Email</td>
-                        <td> : {{$order->email}}</td>
-                    </tr>
-                    <tr>
-                        <td>Phone No.</td>
-                        <td> : {{$order->phone}}</td>
-                    </tr>
-                    <tr>
-                        <td>Address</td>
-                        <td> : {{$order->address1}}, {{$order->address2}}</td>
-                    </tr>
-                    <tr>
-                        <td>Country</td>
-                        <td> : {{$order->country}}</td>
-                    </tr>
-                    <tr>
-                        <td>Post Code</td>
-                        <td> : {{$order->post_code}}</td>
-                    </tr>
+                <tr class="">
+                  <td>Full Name</td>
+                  <td> : {{$order->first_name}} {{$order->last_name}}</td>
+                </tr>
+                <tr>
+                  <td>Email</td>
+                  <td> : {{$order->email}}</td>
+                </tr>
+                <tr>
+                  <td>Phone No.</td>
+                  <td> : {{$order->phone}}</td>
+                </tr>
+                <tr>
+                  <td>Address</td>
+                  <td> : {{$order->address1}}, {{$order->address2}}</td>
+                </tr>
+                <tr>
+                  <td>Country</td>
+                  <td> : {{$order->country}}</td>
+                </tr>
+                <tr>
+                  <td>Post Code</td>
+                  <td> : {{$order->post_code}}</td>
+                </tr>
               </table>
             </div>
           </div>
@@ -142,13 +209,15 @@
 
 @push('styles')
 <style>
-    .order-info,.shipping-info{
-        background:#ECECEC;
-        padding:20px;
-    }
-    .order-info h4,.shipping-info h4{
-        text-decoration: underline;
-    }
+  .order-info,
+  .shipping-info {
+    background: #ECECEC;
+    padding: 20px;
+  }
 
+  .order-info h4,
+  .shipping-info h4 {
+    text-decoration: underline;
+  }
 </style>
 @endpush
